@@ -15,8 +15,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // contoh endpoint public
-app.get("/public", (req, res) => {
-  res.json({ message: "Endpoint public bisa diakses siapa saja" });
+app.get("/", (req, res) => {
+  res.json({ massage: "Server jalan"});
 });
 
 // contoh endpoint protected
