@@ -1,9 +1,11 @@
-require("dotenv").config();
-const express = require("express");
+require('dotenv').config();
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
+
 const app = express();
-const rateLimit = require("express-rate-limit");
-const { body, validationResult } = require("express-validator");
-const authenticateToken = require("./middleware/auth");
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
@@ -14,38 +16,41 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// contoh endpoint public
+// root agar browser tidak lihat "Cannot GET /"
 app.get("/", (req, res) => {
   res.json({ massage: "Server jalan"});
 });
 
-// contoh endpoint protected
-app.get("/protected", authenticateToken, (req, res) => {
-  res.json({ message: "Ini endpoint yang hanya bisa diakses pakai token", user: req.user });
-});
-
-// contoh endpoint POST dengan validasi (anti SQL Injection basic)
-app.post("/login",
-  body("username").isAlphanumeric(),
-  body("password").isLength({ min: 5 }),
+// login (contoh)
+app.post('/login',
+  body('username').notEmpty(),
+  body('password').notEmpty(),
   (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
-    // dummy login → seharusnya cek DB dengan query parameterized (bukan concat string)
-    const user = { id: 1, username: req.body.username };
-
-    const jwt = require("jsonwebtoken");
-    const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1h" });
-
-    res.json({ token });
+    const { username, password } = req.body;
+    // contoh user statis
+    if (username === 'admin' && password === '12345') {
+      const token = jwt.sign({ username }, process.env.JWT_SECRET || 'rahasia123', { expiresIn: '1h' });
+      return res.json({ message: 'Login berhasil', token });
+    }
+    res.status(401).json({ message: 'Username atau password salah' });
   }
 );
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server jalan di http://localhost:${PORT}`);
+// protected route
+app.get('/profile', (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Token missing' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'rahasia123', (err, user) => {
+    if (err) return res.status(403).json({ message: 'Token invalid' });
+    res.json({ message: 'Ini data profile rahasia', user });
+  });
 });
+
+app.listen(PORT, () => console.log(`Server jalan di http://localhost:${PORT}`));
 
