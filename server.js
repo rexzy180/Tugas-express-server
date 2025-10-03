@@ -4,6 +4,20 @@ const port = 3000;
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+  // clone body agar bisa dimodifikasi
+  const body = { ...req.body };
+  // masking jika ada nilai 100
+  for (const key in body) {
+    if (body[key] === 100) {
+      body[key] = '***'; // masking
+    }
+  }
+  console.log(`[LOG] ${req.method} ${req.url} body=`, body);
+  next();
+});
+
+
 // Root endpoint
 app.get('/', (req, res) =>
   res.send(`Congratulations! Your Express server is running on port ${port}`)
